@@ -144,7 +144,6 @@ export default async function Home() {
           </p>
           <div className="flex flex-col md:flex-row justify-center gap-4 text-xs opacity-75">
             <p>Created by <a href="https://x.com/ferric" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">@ferric</a></p>
-            <p>Designed by <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">ChatGPT</a></p>
           </div>
         </footer>
       </div>
