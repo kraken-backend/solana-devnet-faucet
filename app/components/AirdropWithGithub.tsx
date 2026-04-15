@@ -25,6 +25,10 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [tweetText, setTweetText] = useState('');
   const [showTweetPrompt, setShowTweetPrompt] = useState(false);
   const [username, setUsername] = useState('');
+  const [showConfig, setShowConfig] = useState(false);
+  const [configuredFaucetAddress, setConfiguredFaucetAddress] = useState(faucetAddress || '');
+  const [senderSecretKey, setSenderSecretKey] = useState('');
+  const [selectedAirdropAmount, setSelectedAirdropAmount] = useState(airdropAmount || '0.5');
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -43,6 +47,13 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
     const formData = new FormData();
     formData.append('walletAddress', walletAddress);
     formData.append('isAnonymous', isAnonymous.toString());
+    if (configuredFaucetAddress.trim()) {
+      formData.append('faucetAddress', configuredFaucetAddress.trim());
+    }
+    if (senderSecretKey.trim()) {
+      formData.append('senderSecretKey', senderSecretKey.trim());
+    }
+    formData.append('customAirdropAmount', selectedAirdropAmount);
 
     try {
       const result = await airdrop(formData);
@@ -87,6 +98,13 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       formData.append('reason', accessReason.trim());
       formData.append('walletAddress', walletAddress);
       formData.append('isAnonymous', isAnonymous.toString());
+      if (configuredFaucetAddress.trim()) {
+        formData.append('faucetAddress', configuredFaucetAddress.trim());
+      }
+      if (senderSecretKey.trim()) {
+        formData.append('senderSecretKey', senderSecretKey.trim());
+      }
+      formData.append('customAirdropAmount', selectedAirdropAmount);
       const result = await requestAccess(formData);
       
       if (result.startsWith('ACCESS_APPROVED:')) {
@@ -166,7 +184,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         return 'Error fetching balance';
       }
     }
-  }, [faucetAddress]);
+  }, [configuredFaucetAddress]);
 
   useEffect(() => {
     let mounted = true;
@@ -188,7 +206,65 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   return (
     <div className="flex flex-col items-center justify-center space-y-6 w-full max-w-2xl px-4">
       <div className="text-center mb-2 text-xl">
-        Get {airdropAmount} devnet SOL airdropped to your wallet
+        Get {selectedAirdropAmount} devnet SOL airdropped to your wallet
+      </div>
+
+      <div className="w-full rounded-md border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => setShowConfig((prev) => !prev)}
+          className="w-full text-left font-medium text-sm"
+        >
+          {showConfig ? 'Hide' : 'Show'} faucet setup (UI config)
+        </button>
+        {showConfig && (
+          <div className="mt-4 space-y-4">
+            <div>
+              <label htmlFor="faucetAddress" className="block text-sm font-medium mb-1">
+                Faucet wallet address
+              </label>
+              <input
+                id="faucetAddress"
+                value={configuredFaucetAddress}
+                onChange={(e) => setConfiguredFaucetAddress(e.target.value)}
+                placeholder="Enter faucet public key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-gray-600"
+              />
+            </div>
+            <div>
+              <label htmlFor="senderSecretKey" className="block text-sm font-medium mb-1">
+                Sender secret key (comma-separated)
+              </label>
+              <textarea
+                id="senderSecretKey"
+                value={senderSecretKey}
+                onChange={(e) => setSenderSecretKey(e.target.value)}
+                placeholder="e.g. 12,34,56,..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-gray-600"
+                rows={3}
+              />
+            </div>
+            <div>
+              <label htmlFor="airdropAmount" className="block text-sm font-medium mb-1">
+                Airdrop amount
+              </label>
+              <select
+                id="airdropAmount"
+                value={selectedAirdropAmount}
+                onChange={(e) => setSelectedAirdropAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-gray-600"
+              >
+                <option value="0.5">0.5 SOL</option>
+                <option value="1">1 SOL</option>
+                <option value="1.5">1.5 SOL</option>
+                <option value="5">5 SOL</option>
+              </select>
+            </div>
+            <p className="text-xs text-yellow-700 dark:text-yellow-300">
+              Use this only on your own deployment/local machine. Do not expose secret key in public environments.
+            </p>
+          </div>
+        )}
       </div>
       
       <div className="w-full">
@@ -325,7 +401,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       <div className="flex flex-col items-center space-y-2 text-xs sm:text-sm opacity-80 px-2">
         <p className="text-center">
           Send donations to: 
-          <span className="font-mono block sm:inline break-all sm:break-normal mt-1 sm:mt-0">{faucetAddress}</span>
+          <span className="font-mono block sm:inline break-all sm:break-normal mt-1 sm:mt-0">{configuredFaucetAddress || faucetAddress}</span>
         </p>
         <p className="text-center">
           Current faucet balance: 

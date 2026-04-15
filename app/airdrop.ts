@@ -19,6 +19,24 @@ interface TomlData {
   repo?: Repository[];
 }
 
+const ALLOWED_AIRDROP_AMOUNTS = new Set(['0.5', '1', '1.5', '5']);
+
+function resolveAirdropAmount(formData: FormData): number {
+  const customAmountRaw = formData.get('customAirdropAmount');
+  if (typeof customAmountRaw === 'string' && ALLOWED_AIRDROP_AMOUNTS.has(customAmountRaw)) {
+    return Number(customAmountRaw);
+  }
+  return Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 0.5);
+}
+
+function resolveSenderSecretKey(formData: FormData): string | null {
+  const customSecret = formData.get('senderSecretKey');
+  if (typeof customSecret === 'string' && customSecret.trim() !== '') {
+    return customSecret.trim();
+  }
+  return process.env.SENDER_SECRET_KEY || null;
+}
+
 // In-memory fallback for KV storage when environment variables are missing
 const inMemoryStore = new Map<string, number>();
 const inMemoryAirdropHistory = new Array<AirdropRecord>();
@@ -245,7 +263,8 @@ async function performAirdrop(
   githubUsername: string,
   walletAddress: string,
   isAnonymous: boolean,
-  isWhitelisted: boolean
+  isWhitelisted: boolean,
+  formData: FormData
 ): Promise<string> {
   try {
     // Use Solana's official devnet RPC instead of custom endpoint
@@ -274,7 +293,7 @@ async function performAirdrop(
       // Continue with airdrop if balance check fails
     }
 
-    const secretKey = process.env.SENDER_SECRET_KEY;
+    const secretKey = resolveSenderSecretKey(formData);
     if(!secretKey) return 'Missing sender key';
 
     // Check if user is in the upgraded users list
@@ -285,7 +304,7 @@ async function performAirdrop(
     let airdropAmount: number;
     if (isUpgraded || await isUserVouched(githubUsername)) {
       // Upgraded users get the full AIRDROP_AMOUNT regardless of whitelist status
-      airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+      airdropAmount = resolveAirdropAmount(formData);
       console.log(`User ${githubUsername} is upgraded, giving full amount: ${airdropAmount}`);
     } else if (isWhitelisted) {
       // Whitelisted but not upgraded users get the WHITELIST_AIRDROP_AMOUNT
@@ -294,7 +313,7 @@ async function performAirdrop(
       return 'Airdrop failed'
     } else {
       // Regular users with GitHub repos in the Solana ecosystem
-      airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+      airdropAmount = resolveAirdropAmount(formData);
       console.log(`User ${githubUsername} is regular user with GitHub repo, giving: ${airdropAmount}`);
     }
     
@@ -350,7 +369,7 @@ async function performAirdrop(
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const walletAddressString = walletAddress.trim();
       
-      const secretKey = process.env.SENDER_SECRET_KEY;
+      const secretKey = resolveSenderSecretKey(formData);
       if(!secretKey) return 'Missing sender key';
 
       // Check if user is in the upgraded users list
@@ -360,7 +379,7 @@ async function performAirdrop(
       // Determine airdrop amount based on user status
       const airdropAmount = isWhitelisted 
         ? Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1)
-        : Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+        : resolveAirdropAmount(formData);
       const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
 
       const secretKeyUint8Array = new Uint8Array(
@@ -739,7 +758,8 @@ export default async function airdrop(formData: FormData) {
     githubUsername,
     walletAddress.toString(),
     isAnonymous,
-    effectivelyWhitelisted
+    effectivelyWhitelisted,
+    formData
   );
 }
 
@@ -850,7 +870,8 @@ export async function requestAccess(formData: FormData) {
       githubUsername,
       walletAddress,
       isAnonymous,
-      true // Newly approved users are whitelisted
+      true, // Newly approved users are whitelisted
+      formData
     );
     
     if (result === 'Airdrop successful') {
